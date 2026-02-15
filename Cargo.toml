@@ -1,0 +1,61 @@
+[package]
+name = "corpex"
+version = "0.1.0"
+edition = "2021"
+description = "Companies House corporate investigation desktop tool"
+
+[dependencies]
+# GUI
+eframe = { version = "0.31", features = ["persistence"] }
+egui = "0.31"
+egui_extras = { version = "0.31", features = ["all_loaders"] }
+egui_graphs = "0.22"
+
+# Graph data structure
+petgraph = "0.7"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# HTML parsing
+scraper = "0.22"
+
+# PDF text extraction
+pdf-extract = "0.7"
+
+# Environment
+dotenvy = "0.15"
+
+# Rate limiting
+governor = "0.8"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+# Misc
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+regex = "1"
+base64 = "0.22"
+dirs = "6"
+open = "5"
+
+# Nonblocking channels for GUI ↔ async
+crossbeam-channel = "0.5"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
