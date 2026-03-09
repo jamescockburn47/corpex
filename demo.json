@@ -3,6 +3,7 @@
   "description": "Companies House corporate investigation tool. Search companies, map ownership networks, analyse filings with AI, and export investigation reports.",
   "type": "desktop",
   "port": 8080,
+  "path": "/vnc_lite.html",
   "healthCheck": "/vnc.html",
   "env": [
     {
