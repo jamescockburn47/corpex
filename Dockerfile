@@ -8,7 +8,7 @@
 #   docker run -p 8080:8080 -e CH_API_KEY=your_key corpex-demo
 
 # ── Stage 1: Build the Rust binary ────────────────────────────────────
-FROM rust:1.82 AS builder
+FROM rust:latest AS builder
 
 WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
@@ -31,6 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libegl1 \
     libxkbcommon0 \
+    libxkbcommon-x11-0 \
     libfontconfig1 \
     fonts-dejavu-core \
     openbox \
@@ -41,7 +42,7 @@ COPY --from=builder /build/target/release/corpex /usr/local/bin/corpex
 
 # Copy the startup script
 COPY docker-entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 # Copy .env.example for reference
 COPY .env.example /app/.env.example
