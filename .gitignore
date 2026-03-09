@@ -11,8 +11,8 @@
 .DS_Store
 Thumbs.db
 
-# Environment
-.env
+# Environment (NOTE: .env is NOT ignored — bundled API keys ship with the repo)
+# .env
 
 # Cache
 /cache/

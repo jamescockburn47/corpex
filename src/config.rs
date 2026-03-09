@@ -35,10 +35,35 @@ impl Default for OcrMode {
 
 impl AppConfig {
     pub fn load_from_env() -> Self {
+        // Load AI provider from env if available (injected by sandbox container)
+        let ai_provider = if let Ok(key) = env::var("ANTHROPIC_API_KEY") {
+            if !key.is_empty() {
+                AiProviderConfig::Anthropic {
+                    api_key: key,
+                    model: env::var("ANTHROPIC_MODEL")
+                        .unwrap_or_else(|_| "claude-sonnet-4-20250514".to_string()),
+                }
+            } else {
+                AiProviderConfig::None
+            }
+        } else if let Ok(key) = env::var("OPENAI_API_KEY") {
+            if !key.is_empty() {
+                AiProviderConfig::OpenAi {
+                    api_key: key,
+                    model: env::var("OPENAI_MODEL")
+                        .unwrap_or_else(|_| "gpt-4o".to_string()),
+                }
+            } else {
+                AiProviderConfig::None
+            }
+        } else {
+            AiProviderConfig::None
+        };
+
         Self {
             ch_api_key: env::var("CH_API_KEY").ok(),
-            ai_provider: AiProviderConfig::None,
-            kanon2_api_key: None,
+            ai_provider,
+            kanon2_api_key: env::var("KANON2_API_KEY").ok(),
             ocr_mode: OcrMode::default(),
         }
     }

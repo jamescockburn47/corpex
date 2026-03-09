@@ -10,17 +10,24 @@
       "key": "CH_API_KEY",
       "label": "Companies House API Key",
       "required": true,
+      "byok": false,
       "helpUrl": "https://developer.company-information.service.gov.uk/"
     },
     {
       "key": "ANTHROPIC_API_KEY",
-      "label": "Anthropic API Key (for AI analysis)",
-      "required": false
+      "label": "Anthropic API Key",
+      "required": true,
+      "byok": true,
+      "hint": "Get your key from console.anthropic.com",
+      "helpUrl": "https://console.anthropic.com/settings/keys"
     },
     {
       "key": "OPENAI_API_KEY",
-      "label": "OpenAI API Key (alternative AI provider)",
-      "required": false
+      "label": "OpenAI API Key (alternative to Anthropic)",
+      "required": false,
+      "byok": true,
+      "hint": "Get your key from platform.openai.com",
+      "helpUrl": "https://platform.openai.com/api-keys"
     }
   ],
   "resources": {
