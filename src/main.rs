@@ -1,14 +1,4 @@
-mod app;
-mod config;
-
-mod ui;
-mod ch_api;
-mod extraction;
-mod investigation;
-mod ai;
-mod export;
-mod cache;
-
+#[cfg(not(target_arch = "wasm32"))]
 fn main() {
     // Initialize logging
     tracing_subscriber::fmt()
@@ -32,7 +22,12 @@ fn main() {
     eframe::run_native(
         "Corpex",
         native_options,
-        Box::new(|cc| Ok(Box::new(app::InvestigationApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(corpex::app::InvestigationApp::new(cc)))),
     )
     .expect("Failed to launch application");
+}
+
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    // WASM uses lib.rs wasm_bindgen(start) entry point
 }

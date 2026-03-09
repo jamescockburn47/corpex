@@ -1,5 +1,3 @@
-use std::env;
-
 /// Runtime configuration loaded from .env and settings panel.
 #[derive(Clone, Debug)]
 pub struct AppConfig {
@@ -34,12 +32,25 @@ impl Default for OcrMode {
 }
 
 impl AppConfig {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn load_from_env() -> Self {
         Self {
-            ch_api_key: env::var("CH_API_KEY").ok(),
+            ch_api_key: std::env::var("CH_API_KEY").ok(),
             ai_provider: AiProviderConfig::None,
             kanon2_api_key: None,
             ocr_mode: OcrMode::default(),
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn load_from_env() -> Self {
+        // In WASM, environment variables are not available.
+        // All configuration is set via the settings panel.
+        Self {
+            ch_api_key: None,
+            ai_provider: AiProviderConfig::None,
+            kanon2_api_key: None,
+            ocr_mode: OcrMode::NativeOnly,
         }
     }
 

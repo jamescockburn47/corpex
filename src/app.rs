@@ -1,9 +1,9 @@
-use crate::config::{AppConfig, AiProviderConfig, OcrMode};
+use crate::config::{AppConfig, AiProviderConfig};
 use crate::ch_api;
 use crate::investigation::network::CorporateNetwork;
+use crate::platform::{MsgSender, MsgReceiver, PlatformRuntime, create_channel};
 use crate::ui;
 
-use crossbeam_channel::{Receiver, Sender};
 use std::collections::HashMap;
 
 /// Search mode toggle.
@@ -143,11 +143,11 @@ pub struct InvestigationApp {
     pub last_query_cost_usd: f64,
 
     // Background task communication
-    pub bg_sender: Sender<BackgroundMessage>,
-    pub bg_receiver: Receiver<BackgroundMessage>,
+    pub bg_sender: MsgSender<BackgroundMessage>,
+    pub bg_receiver: MsgReceiver<BackgroundMessage>,
 
-    // Tokio runtime handle
-    pub runtime: tokio::runtime::Runtime,
+    // Platform runtime handle
+    pub runtime: PlatformRuntime,
 
     // Loading flags
     pub is_loading: bool,
@@ -164,8 +164,8 @@ pub struct InvestigationApp {
 impl InvestigationApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let config = AppConfig::load_from_env();
-        let (tx, rx) = crossbeam_channel::unbounded();
-        let runtime = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+        let (tx, rx) = create_channel();
+        let runtime = PlatformRuntime::new();
 
         Self {
             config,
@@ -319,7 +319,7 @@ impl InvestigationApp {
                         gi.has_consolidated_accounts = has_consolidated;
                     }
                     // Also update any subsidiary that points to this parent
-                    for (cn, gi) in self.group_info.iter_mut() {
+                    for (_cn, gi) in self.group_info.iter_mut() {
                         if let Some(p) = &gi.parent {
                             if p.company_number == parent_number {
                                 gi.subsidiaries = subsidiaries.clone();
@@ -362,7 +362,7 @@ impl InvestigationApp {
     pub fn search_companies(&self, query: String) {
         let tx = self.bg_sender.clone();
         let api_key = self.config.ch_api_key.clone().unwrap_or_default();
-        self.runtime.spawn(async move {
+        platform_spawn!(self.runtime, async move {
             match ch_api::client::search_companies(&api_key, &query).await {
                 Ok(results) => { let _ = tx.send(BackgroundMessage::SearchResults(results)); }
                 Err(e) => { let _ = tx.send(BackgroundMessage::Error(format!("Search failed: {}", e))); }
@@ -374,7 +374,7 @@ impl InvestigationApp {
     pub fn search_officers(&self, query: String) {
         let tx = self.bg_sender.clone();
         let api_key = self.config.ch_api_key.clone().unwrap_or_default();
-        self.runtime.spawn(async move {
+        platform_spawn!(self.runtime, async move {
             match ch_api::client::search_officers(&api_key, &query).await {
                 Ok(results) => { let _ = tx.send(BackgroundMessage::OfficerSearchResults(results)); }
                 Err(e) => { let _ = tx.send(BackgroundMessage::Error(format!("Officer search failed: {}", e))); }
@@ -386,7 +386,7 @@ impl InvestigationApp {
     pub fn fetch_officer_appointments(&self, officer_name: String, appointments_path: String) {
         let tx = self.bg_sender.clone();
         let api_key = self.config.ch_api_key.clone().unwrap_or_default();
-        self.runtime.spawn(async move {
+        platform_spawn!(self.runtime, async move {
             match ch_api::client::get_officer_appointments(&api_key, &appointments_path).await {
                 Ok(response) => { let _ = tx.send(BackgroundMessage::OfficerAppointmentsLoaded { officer_name, response }); }
                 Err(e) => { let _ = tx.send(BackgroundMessage::Error(format!("Appointments fetch failed: {}", e))); }
@@ -400,7 +400,7 @@ impl InvestigationApp {
         let api_key = self.config.ch_api_key.clone().unwrap_or_default();
         let cn = company_number.clone();
 
-        self.runtime.spawn(async move {
+        platform_spawn!(self.runtime, async move {
             let _ = tx.send(BackgroundMessage::StatusUpdate(format!("Fetching profile for {}...", cn)));
 
             // Profile
@@ -538,7 +538,7 @@ impl InvestigationApp {
         let tx = self.bg_sender.clone();
         let api_key = self.config.ch_api_key.clone().unwrap_or_default();
 
-        self.runtime.spawn(async move {
+        platform_spawn!(self.runtime, async move {
             let _ = tx.send(BackgroundMessage::StatusUpdate(
                 format!("Downloading document for {}...", filing_id),
             ));
@@ -614,7 +614,7 @@ impl InvestigationApp {
         self.is_loading = true;
         self.status_message = format!("Running AI analysis for {}...", cn);
 
-        self.runtime.spawn(async move {
+        platform_spawn!(self.runtime, async move {
             let _ = tx.send(BackgroundMessage::StatusUpdate(
                 format!("Sending data to AI for {}...", cn),
             ));
@@ -677,7 +677,7 @@ impl InvestigationApp {
         self.is_loading = true;
         self.status_message = "Sending message to AI...".to_string();
 
-        self.runtime.spawn(async move {
+        platform_spawn!(self.runtime, async move {
             // Build message list: context as first user message, then conversation history
             let mut messages = vec![crate::ai::ChatMessage {
                 role: "user".to_string(),
@@ -736,13 +736,13 @@ impl InvestigationApp {
         self.is_loading = true;
         self.status_message = format!("Discovering group structure from {}...", parent_number);
 
-        self.runtime.spawn(async move {
+        platform_spawn!(self.runtime, async move {
             let _ = tx.send(BackgroundMessage::StatusUpdate(
                 format!("Fetching PSCs for parent {}...", parent_number),
             ));
 
             // Get the parent's PSC data to find all subsidiaries
-            let parent_pscs = match ch_api::client::get_pscs(&api_key, &parent_number).await {
+            let _parent_pscs = match ch_api::client::get_pscs(&api_key, &parent_number).await {
                 Ok(pscs) => pscs,
                 Err(e) => {
                     let _ = tx.send(BackgroundMessage::StatusUpdate(
@@ -812,7 +812,7 @@ impl InvestigationApp {
                     }
 
                     // Rate limiting — be gentle with the API
-                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                    crate::platform::sleep_ms(200).await;
 
                     // Limit to 10 checks
                     if subsidiaries.len() >= 10 {
@@ -909,7 +909,7 @@ impl InvestigationApp {
         self.status_message = format!("Running group analysis ({} subsidiaries)...", sub_contexts.len());
 
         let cn = parent_number;
-        self.runtime.spawn(async move {
+        platform_spawn!(self.runtime, async move {
             let _ = tx.send(BackgroundMessage::StatusUpdate(
                 "Sending group data to AI...".to_string(),
             ));
@@ -950,7 +950,7 @@ impl InvestigationApp {
         self.is_loading = true;
         self.status_message = format!("Summarising filing {}...", filing_id);
 
-        self.runtime.spawn(async move {
+        platform_spawn!(self.runtime, async move {
             let prompt = format!(
                 "Summarise this Companies House filing document concisely.\n\
                  Filing: {}\n\n\

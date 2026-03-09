@@ -300,7 +300,10 @@ pub fn render(app: &mut InvestigationApp, ui: &mut egui::Ui) {
                 "https://find-and-update.company-information.service.gov.uk/company/{}/filing-history/{}/document?format=pdf",
                 company_number, filing_id
             );
-            let _ = open::that(&url);
+            #[cfg(not(target_arch = "wasm32"))]
+            { let _ = open::that(&url); }
+            #[cfg(target_arch = "wasm32")]
+            { let _ = url; } // WASM: links handled by egui's built-in hyperlink support
         }
     }
 
@@ -1026,7 +1029,10 @@ fn render_save_dialog(
                                 app.save_project_name.trim().to_string()
                             };
                             let path = crate::export::export_root().join(&project);
-                            let _ = open::that(path);
+                            #[cfg(not(target_arch = "wasm32"))]
+                            { let _ = open::that(path); }
+                            #[cfg(target_arch = "wasm32")]
+                            { let _ = path; }
                         }
                     }
                 }
