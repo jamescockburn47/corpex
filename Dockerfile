@@ -5,7 +5,7 @@
 #
 # Usage:
 #   docker build -t corpex-demo .
-#   docker run -p 8080:8080 -e CH_API_KEY=your_key corpex-demo
+#   docker run -p 8080:8080 corpex-demo
 
 # ── Stage 1: Build the Rust binary ────────────────────────────────────
 FROM rust:latest AS builder
@@ -44,16 +44,17 @@ COPY --from=builder /build/target/release/corpex /usr/local/bin/corpex
 COPY docker-entrypoint.sh /entrypoint.sh
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
-# Copy .env.example for reference
+# Copy .env.example for reference and .env with bundled keys (byok: false)
+# dotenvy loads .env at startup — bundled keys like CH_API_KEY are read from here.
+# BYOK keys (ANTHROPIC_API_KEY etc.) are injected as Docker env vars at container
+# creation time, which take precedence over .env values.
 COPY .env.example /app/.env.example
+COPY .env /app/.env
 
 WORKDIR /app
 
 EXPOSE 8080
 
 ENV DISPLAY=:99
-ENV CH_API_KEY=""
-ENV ANTHROPIC_API_KEY=""
-ENV OPENAI_API_KEY=""
 
 ENTRYPOINT ["/entrypoint.sh"]
