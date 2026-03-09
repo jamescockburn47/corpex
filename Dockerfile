@@ -1,26 +1,58 @@
-# ── Stage 1: Build WASM binary with Trunk ────────────────────────────
-FROM rust:1.82-slim AS builder
+# Corpex Demo — Desktop GUI via noVNC
+#
+# Builds the native Rust/egui app inside the container and exposes
+# it over the web via Xvfb + x11vnc + noVNC. Zero source modifications.
+#
+# Usage:
+#   docker build -t corpex-demo .
+#   docker run -p 8080:8080 -e CH_API_KEY=your_key corpex-demo
 
-RUN apt-get update && \
-    apt-get install -y pkg-config libssl-dev && \
-    rm -rf /var/lib/apt/lists/*
+# ── Stage 1: Build the Rust binary ────────────────────────────────────
+FROM rust:1.82 AS builder
 
-RUN rustup target add wasm32-unknown-unknown
-RUN cargo install trunk wasm-bindgen-cli
-
-WORKDIR /app
+WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
 COPY src/ ./src/
-COPY index.html ./
-COPY Trunk.toml ./
 
-RUN trunk build --release
+# Build release binary
+RUN cargo build --release --bin corpex
 
-# ── Stage 2: Serve with nginx ────────────────────────────────────────
-FROM nginx:alpine
+# ── Stage 2: Runtime with noVNC ───────────────────────────────────────
+FROM ubuntu:24.04
 
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install X11, VNC, noVNC, and EGL/OpenGL for egui
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    xvfb \
+    x11vnc \
+    novnc \
+    websockify \
+    libgl1 \
+    libegl1 \
+    libxkbcommon0 \
+    libfontconfig1 \
+    fonts-dejavu-core \
+    openbox \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the built binary
+COPY --from=builder /build/target/release/corpex /usr/local/bin/corpex
+
+# Copy the startup script
+COPY docker-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Copy .env.example for reference
+COPY .env.example /app/.env.example
+
+WORKDIR /app
 
 EXPOSE 8080
-CMD ["nginx", "-g", "daemon off;"]
+
+ENV DISPLAY=:99
+ENV CH_API_KEY=""
+ENV ANTHROPIC_API_KEY=""
+ENV OPENAI_API_KEY=""
+
+ENTRYPOINT ["/entrypoint.sh"]

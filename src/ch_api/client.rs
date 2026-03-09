@@ -4,7 +4,6 @@ use base64::Engine;
 
 const CH_API_BASE: &str = "https://api.company-information.service.gov.uk";
 
-#[cfg(not(target_arch = "wasm32"))]
 fn build_client(api_key: &str) -> Result<reqwest::Client> {
     let encoded = base64::engine::general_purpose::STANDARD.encode(format!("{}:", api_key));
     let mut headers = reqwest::header::HeaderMap::new();
@@ -15,21 +14,6 @@ fn build_client(api_key: &str) -> Result<reqwest::Client> {
     reqwest::Client::builder()
         .default_headers(headers)
         .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .context("Failed to build HTTP client")
-}
-
-#[cfg(target_arch = "wasm32")]
-fn build_client(api_key: &str) -> Result<reqwest::Client> {
-    let encoded = base64::engine::general_purpose::STANDARD.encode(format!("{}:", api_key));
-    let mut headers = reqwest::header::HeaderMap::new();
-    headers.insert(
-        reqwest::header::AUTHORIZATION,
-        reqwest::header::HeaderValue::from_str(&format!("Basic {}", encoded))?,
-    );
-    // WASM: timeout is handled by the browser, not reqwest
-    reqwest::Client::builder()
-        .default_headers(headers)
         .build()
         .context("Failed to build HTTP client")
 }
@@ -243,8 +227,8 @@ pub enum DocumentContent {
 /// `FilingHistoryItem.links.document_metadata`.
 ///
 /// CH Document API flow:
-///   1. GET {document_metadata_url} -> JSON with `links.document` URL
-///   2. GET {document_url}/content with Accept header -> actual bytes
+///   1. GET {document_metadata_url} → JSON with `links.document` URL
+///   2. GET {document_url}/content with Accept header → actual bytes
 pub async fn download_document(api_key: &str, document_metadata_url: &str) -> Result<DocumentContent> {
     let client = build_client(api_key)?;
 

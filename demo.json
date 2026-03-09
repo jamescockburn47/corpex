@@ -1,24 +1,30 @@
 {
-  "name": "Corpex",
-  "description": "Companies House corporate intelligence and investigation tool",
+  "name": "Corpex — Corporate Intelligence",
+  "description": "Companies House corporate investigation tool. Search companies, map ownership networks, analyse filings with AI, and export investigation reports.",
+  "type": "desktop",
+  "port": 8080,
+  "healthCheck": "/vnc.html",
   "env": [
     {
       "key": "CH_API_KEY",
       "label": "Companies House API Key",
-      "required": false,
-      "hint": "Get a free key at https://developer.company-information.service.gov.uk/"
+      "required": true,
+      "helpUrl": "https://developer.company-information.service.gov.uk/"
     },
     {
       "key": "ANTHROPIC_API_KEY",
-      "label": "Anthropic API Key",
-      "required": false,
-      "hint": "For AI analysis features (Claude)"
+      "label": "Anthropic API Key (for AI analysis)",
+      "required": false
     },
     {
       "key": "OPENAI_API_KEY",
-      "label": "OpenAI API Key",
-      "required": false,
-      "hint": "Alternative AI provider (GPT-4)"
+      "label": "OpenAI API Key (alternative AI provider)",
+      "required": false
     }
-  ]
+  ],
+  "resources": {
+    "memory": "1g",
+    "cpus": "1.0"
+  },
+  "tags": ["rust", "desktop", "companies-house", "investigation", "ai"]
 }
